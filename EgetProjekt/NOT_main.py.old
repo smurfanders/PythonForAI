@@ -1,0 +1,63 @@
+# main.py
+
+import logging
+from utils.logger import setup_logging
+from data_fetching.exchange_data import fetch_and_store_data
+from db.database_operations import initialize_intermediary_database  # Import the session factory
+import argparse
+from datetime import datetime
+
+setup_logging()  # Setup logging configuration
+
+def valid_date(s):
+    """
+    Validates the date string passed from command line arguments.
+
+    Args:
+        s (str): The date string to validate.
+
+    Returns:
+        datetime.datetime: A datetime object representing the validated date.
+
+    Raises:
+        argparse.ArgumentTypeError: If the date string does not match the expected format.
+    """
+    try:
+        return datetime.strptime(s, "%Y-%m-%d")
+    except ValueError:
+        msg = f"Not a valid date: '{s}'. Date format should be YYYY-MM-DD."
+        raise argparse.ArgumentTypeError(msg)
+
+def main():
+    """
+    Main function to parse command line arguments and initiate data fetching.
+
+    This function sets up command line arguments for specifying exchange data fetching parameters,
+    initializes database connection, and calls the data fetching function with the provided arguments.
+    """
+    parser = argparse.ArgumentParser(description="Fetch and store exchange data.")
+    parser.add_argument('--exchange', help='The exchange name', required=True)
+    parser.add_argument('--symbol', help='The symbol (e.g., BTC/USDT)', required=True)
+    parser.add_argument('--start', type=valid_date, help='The start date (YYYY-MM-DD)', required=True)
+    parser.add_argument('--end', type=valid_date, help='The end date (YYYY-MM-DD)', required=True)
+    parser.add_argument('--timeframe', help='The timeframe (e.g., 1h)', default='1h')
+    args = parser.parse_args()
+    """
+    Main entry point of the application. It sets up the logging, loads the configuration,
+    and initiates the data fetching process.
+    """
+    with intermediarySession() as session:
+        try:
+            # Existing setup and function calls...
+            fetch_and_store_data(args.exchange, args.symbol, args.start, args.end, args.timeframe, session=session)
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            # Optionally, exit the program with a non-zero status code to indicate failure
+            # Consider re-enabling sys.exit(1) for production use
+            # sys.exit(1)
+
+if __name__ == "__main__":
+    setup_logging()  # Setup logging configuration
+    #main_session = initialize_main_database(echo=True)  # Initialize main DB
+    intermediarySession = initialize_intermediary_database(echo=True)  # Initialize intermediary DB
+    # Now you can use main_session or intermediary_session as needed in your application

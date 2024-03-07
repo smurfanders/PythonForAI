@@ -1,0 +1,54 @@
+# /utils/config.yaml
+exchanges:
+  binance:
+    api_limit: 999
+    base_url: https://api.binance.com/
+    daily_limit: 666
+    endpoints:
+      exchangeInfo: api/v3/exchangeInfo
+      ohlcv: api/v3/klines
+      trades: api/v3/trades
+    rate_limit: 6000
+    rate_limit_cooldown: 66
+    raw_rate_limit: 61000
+    reset_period: 66666
+    symbols:
+    - BTCUSDT
+    timeout: 2
+  kucoin:
+    api_limit: 999
+    base_url: https://api.kucoin.com/
+    daily_limit: 666
+    endpoints:
+      symbols: api/v1/symbols
+    rate_limit: 666
+    rate_limit_cooldown: 60
+    raw_rate_limit: 324
+    reset_period: 66666
+    symbols:
+    - BTCUSDT
+    timeout: 2
+greedsources:
+  cnn_stocks:
+    url: https://production.dataviz.cnn.io/index/fearandgreed/graphdata/2020-07-14
+    path_to_data: fear_and_greed_historical.data
+    mappings:
+      timestamp: x
+      greed_value: y
+      greed_rating: rating
+    timestamp_divide: 1000 # convert milliseconds in API to seconds in db
+  alt_me_crypto:
+    url: https://api.alternative.me/fng/?limit=100000
+    path_to_data: data
+    mappings:
+      timestamp: timestamp
+      greed_value: value
+      greed_rating: value_classification
+    timestamp_divide: 1 # remain unchanged for this source (seconds)
+  csv_whit3rabbit_stocks:
+    greed_csv_path: db/fear-greed-2011-2023.csv
+    timestamp_column: 'Date'
+    timestamp_format: '%m/%d/%Y'
+    timestamp_divide: 1 # if timestamp is in epoch (seconds)
+    greed_value_column: 'Fear Greed'
+  

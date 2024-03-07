@@ -1,0 +1,41 @@
+# /utils/logging.yaml
+
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  simple:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  detailed:
+    format: '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: simple
+    stream: ext://sys.stdout
+  file_handler:  # This should be nested under handlers
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: detailed
+    filename: 'logs/application.log' # Make sure this path is correct and accessible
+    encoding: 'utf8'
+    maxBytes: 10485760  # 10MB
+    backupCount: 3
+
+loggers:
+  data_fetching:
+    level: DEBUG
+    handlers: [console, file_handler]
+    propagate: no
+
+  analysis:
+    level: INFO
+    handlers: [console, file_handler]
+    propagate: no
+
+root:
+  level: WARNING
+  handlers: [console, file_handler]
+
