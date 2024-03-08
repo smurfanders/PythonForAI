@@ -17,26 +17,43 @@ def aggregate_data(agg_df, time_unit):
         time_unit (str): The time unit for aggregation. Default is 'D' for daily.
                          Other options include 'W' for weekly, 'M' for monthly.
     Returns:
-        pd.DataFrame: Aggregated DataFrame with timestamp reset as a column.
+        pd.DataFrame: Aggregated DataFrame with datetime_timestamp reset as a column.
     """
-    print(f"aggregate_data columns:\n{agg_df.columns}")  # Check columns
+    print(f"aggregate_data columns agg_df:\n{agg_df.columns}")  # Check columns
+    #print("aggregate_data Before conversion, index type:", type(agg_df.index))
 
-    # Convert 'timestamp' from epoch to datetime and set as index
-    agg_df['timestamp'] = pandas.to_datetime(agg_df['timestamp'], unit='s')
-    agg_df.set_index('timestamp', inplace=True)
-    
+    # Assuming that the epoch time might be in milliseconds, we check the magnitude
+    # If the epoch time is too large, it might be in milliseconds.
+    # if agg_df['timestamp'].max() > 10**10:
+    #     agg_df['timestamp'] /= 1000  # Convert from milliseconds to seconds if necessary
+
+    # Convert 'timestamp' from epoch to datetime
+    # agg_df['timestamp'] = pandas.to_datetime(agg_df['timestamp'], unit='s', utc=True)
+
+    # Set 'datetime_timestamp' as the DataFrame index if it's not already
+    if not isinstance(agg_df.index, pandas.DatetimeIndex):
+        agg_df.set_index('datetime_timestamp', inplace=True)
+    print("aggregate_data After setting 'datetime_timestamp' as agg_df index, index type:", type(agg_df.index))
+    print(f"aggregate_data After setting 'datetime_timestamp' as agg_df index agg_df:\n{agg_df}") 
     # Resample and aggregate
     if time_unit == 'D':
         aggregated_df = agg_df.resample('D').mean()  # Example aggregation by mean
     elif time_unit == 'W':
         aggregated_df = agg_df.resample('W').mean()
-    elif time_unit == 'M':
-        aggregated_df = agg_df.resample('M').mean()
+    elif time_unit == 'ME':
+        aggregated_df = agg_df.resample('ME').mean()
 
-    # Reset index to move 'timestamp' back to a column
+    # Reset index so 'datetime_timestamp' becomes a column again
+    # aggregated_df = aggregated_df.reset_index()
     aggregated_df.reset_index(inplace=True)
-    
-    print(f"aggregate_data aggregated_df output columns:\n{aggregated_df.columns}")  # Check columns
+    # Set 'datetime_timestamp' as the DataFrame index if it's not already
+    # if not isinstance(agg_df.index, pandas.DatetimeIndex):
+    #     agg_df.set_index('datetime_timestamp', inplace=True)
+    # # Convert the index to the local timezone if necessary
+    # aggregated_df['datetime_timestamp'] = aggregated_df['datetime_timestamp'].dt.tz_convert(None)
+    print("aggregate_data After reset_index, index type:", type(aggregated_df.index))
+    #print(f"aggregate_data aggregated_df output columns:\n{aggregated_df.columns}")  # Check columns
+    print(f"aggregate_data aggregated_df:\n{aggregated_df}")
     return aggregated_df
 
 def decompose_time_series(dec_df, column_name, model='additive', period=365):

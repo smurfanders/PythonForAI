@@ -54,7 +54,7 @@ async def db_data_to_dataframe(exchange_symbol_data):
     # Attempt to transform the data into a DataFrame.
     try:
         exchange_data = [{
-            #"timestamp": datetime.datetime.fromtimestamp(data_records.timestamp).strftime('%Y-%m-%d %H:%M'),
+            "datetime_timestamp": pandas.to_datetime(data_records.timestamp, unit='s', utc=True),  # New column for datetime
             "timestamp": data_records.timestamp,  # Do not convert to string here if epoch time is needed for aggregation
             "open": data_records.open,
             "high": data_records.high,
@@ -63,8 +63,7 @@ async def db_data_to_dataframe(exchange_symbol_data):
             "volume": data_records.volume
         } for data_records in exchange_symbol_data]
         exchange_df = pandas.DataFrame(exchange_data)
-        #exchange_df['timestamp'] = pandas.to_datetime(exchange_df['timestamp'], unit='s')  # Adjust based on actual timestamp unit if different
-        print(f"exchange_df:\n{exchange_df}")
+        print(f"db_data_to_dataframe exchange_df:\n{exchange_df}")
         return exchange_df
     except Exception as e:
         logger.error(f"Failed to convert db_data_to_dataframe: {e}", exc_info=True)
@@ -87,7 +86,7 @@ async def greed_db_data_to_dataframe(greed_records_data):
     # Attempt to transform the data into a DataFrame.
     try:
         greed_data = [{
-            #"timestamp": datetime.datetime.fromtimestamp(greed_record.timestamp).strftime('%Y-%m-%d %H:%M'),
+            "datetime_timestamp": pandas.to_datetime(greed_records.timestamp, unit='s', utc=True),  # New column for datetime
             "timestamp": greed_records.timestamp, # Do not convert to string here if epoch time is needed for aggregation
             "greed_value": greed_records.greed_value,
             "greed_rating": greed_records.greed_rating,

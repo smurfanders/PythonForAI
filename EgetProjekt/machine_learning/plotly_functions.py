@@ -12,7 +12,7 @@ import logging  # Provides a flexible framework for logging in Python applicatio
 setup_logging() 
 logger = logging.getLogger(__name__)
 
-async def plot_crypto_candlestick(exchange_name: str, symbol_name: str):
+async def plot_crypto_candlestick(symbol_name: str, exchange_name: str):
     """
     Plots a candlestick chart for the specified cryptocurrency symbol and exchange.
 
@@ -36,7 +36,7 @@ async def plot_crypto_candlestick(exchange_name: str, symbol_name: str):
         crypto_df = await db_data_to_dataframe(crypto_data)
         # Use Plotly to create a candlestick chart.{datetime.datetime.fromtimestamp(adjusted_start_date / 1000)}
         fig = pl_go.Figure(data=[pl_go.Candlestick(
-                    x=crypto_df['timestamp'], 
+                    x=crypto_df['datetime_timestamp'], 
                     open=crypto_df['open'],
                     high=crypto_df['high'],
                     low=crypto_df['low'],
@@ -46,7 +46,7 @@ async def plot_crypto_candlestick(exchange_name: str, symbol_name: str):
                         xaxis_title='Time', yaxis_title='Price')
         fig.update_layout(title=f'{exchange_name}:{symbol_name} Price Movements',
                         xaxis_title='Time', yaxis_title='Price',
-                        xaxis=dict(type='category'))  # This line may help improve date label formatting
+                        xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # This line may help improve date label formatting
         # Display the figure.
         fig.show()
     except Exception as e:
@@ -54,7 +54,7 @@ async def plot_crypto_candlestick(exchange_name: str, symbol_name: str):
         # Optionally, raise the exception to signal failure to callers.
         raise
 
-async def plot_crypto_time_series(exchange_name: str, symbol_name: str):
+async def plot_crypto_time_series(symbol_name: str, exchange_name: str):
     """
     Plots a time series of the closing prices for a specified cryptocurrency symbol
     and exchange.
@@ -75,13 +75,13 @@ async def plot_crypto_time_series(exchange_name: str, symbol_name: str):
     fig = pl_go.Figure()
 
     # Add the time series data.
-    fig.add_trace(pl_go.Scatter(x=crypto_df['timestamp'], y=crypto_df['close'], mode='lines', name='Close Price'))
+    fig.add_trace(pl_go.Scatter(x=crypto_df['datetime_timestamp'], y=crypto_df['close'], mode='lines', name='Close Price'))
 
     # Update the layout to add titles and axis labels.
     fig.update_layout(title=f'Time Series of Closing Prices for {exchange_name}:{symbol_name}',
                       xaxis_title='Time',
                       yaxis_title='Closing Price',
-                      xaxis=dict(type='date'))  # Ensure x-axis is treated as date
+                      xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date
 
     # Show the figure.
     fig.show()
@@ -115,9 +115,9 @@ async def plot_fear_greed_index(greed_sources, start_date, end_date):
             
             # Convert data into a DataFrame
             greed_df = await greed_db_data_to_dataframe(greed_data)
-
+            print(f"plot_fear_greed_index greed_df after await:{greed_df}")
             # Plot line chart for this FGI source
-            fig.add_trace(pl_go.Scatter(x=greed_df['timestamp'], y=greed_df['greed_value'],
+            fig.add_trace(pl_go.Scatter(x=greed_df['datetime_timestamp'], y=greed_df['greed_value'],
                                         mode='lines', name=greed_source_name))
         except Exception as e:
             logger.error(f"plot_fear_greed_index Failed:{greed_source_name}:{e}", exc_info=True)
@@ -128,12 +128,12 @@ async def plot_fear_greed_index(greed_sources, start_date, end_date):
     fig.update_layout(title='Fear and Greed Index Over Time',
                       xaxis_title='Time',
                       yaxis_title='Greed Value',
-                      xaxis=dict(type='date'))  # Ensure x-axis is treated as date for better readability
+                      xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date for better readability
 
     # Show the figure.
     fig.show()
 
-async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name, greed_sources, start_date, end_date, time_units=['D', 'W', 'M']):
+async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name, greed_sources, start_date, end_date, time_units=['D', 'W', 'ME']):
     # Fetch and prepare the cryptocurrency market data
     market_data = await fetch_db_historical_data_ordered(crypto_symbol_name, crypto_exchange_name)
     market_df = await db_data_to_dataframe(market_data)
@@ -144,34 +144,32 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
         period = 365 if time_unit == 'D' else 52 if time_unit == 'W' else 12
         print(f"analyze_plot_fgi_market_data market_df.columns:\n{market_df.columns}")  # Check columns right before aggregate_data call
         aggregated_market_df = aggregate_data(market_df, time_unit)
+        #print(type(aggregated_market_df.index))
+        print(aggregated_market_df.columns)
         print(f"analyze_plot_fgi_market_data aggregated_market_df:\n{aggregated_market_df}")  # Check columns right before aggregate_data call
-        fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df.index, y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
+        fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
         fig_market.update_layout(
             title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
             xaxis_title='Time',
             yaxis_title='Closing Price',
-            xaxis=dict(
-                type='date',  # This tells Plotly that the x-axis data should be treated as dates
-                tickformat='%Y-%m-%d'  # Optional: This specifies the format in which the dates should be displayed
-            )
-        )
+            xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))
         fig_market.show()
 
     # Loop through each FGI source and time unit for FGI data analysis
-    for fgi_source in greed_sources:
-        fgi_data = await fetch_greed_db_historical_data_ordered(fgi_source, start_date, end_date)
-        fgi_df = await greed_db_data_to_dataframe(fgi_data)
+    for greed_source_name in greed_sources:
+        greed_data = await fetch_greed_db_historical_data_ordered(greed_source_name, start_date, end_date)
+        greed_fgi_df = await greed_db_data_to_dataframe(greed_data)
         
         for time_unit in time_units:
-            print(f"analyze_plot_fgi_market_data fgi_df.columns:\n{fgi_df.columns}")  # Check columns right before aggregate_data call
-            aggregated_fgi_df = aggregate_data(fgi_df, time_unit)
+            print(f"analyze_plot_fgi_market_data fgi_df.columns:\n{greed_fgi_df.columns}")  # Check columns right before aggregate_data call
+            aggregated_fgi_df = aggregate_data(greed_fgi_df, time_unit)
             if len(aggregated_fgi_df) < 2:
-                print(f"Not enough data for {time_unit} aggregation for source {fgi_source}.")
+                print(f"Not enough data for {time_unit} aggregation for source {greed_source_name}.")
                 continue
             
             period = {'D': 365, 'W': 52, 'M': 12}.get(time_unit, 365)
             decomposition_result = seasonal_decompose(aggregated_fgi_df['greed_value'], model='additive', extrapolate_trend='freq', period=period)
-            await plot_decomposition(decomposition_result, f'FGI Decomposition ({time_unit}) for {fgi_source}')
+            await plot_decomposition(decomposition_result, f'FGI Decomposition ({time_unit}) for {greed_source_name}')
 
 async def plot_decomposition(decomposition, title='Time Series Decomposition'):
     """
