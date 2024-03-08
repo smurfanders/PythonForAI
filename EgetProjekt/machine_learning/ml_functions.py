@@ -19,7 +19,7 @@ def aggregate_data(agg_df, time_unit):
     Returns:
         pd.DataFrame: Aggregated DataFrame with datetime_timestamp reset as a column.
     """
-    print(f"aggregate_data columns agg_df:\n{agg_df.columns}")  # Check columns
+    # print(f"aggregate_data columns agg_df:\n{agg_df.columns}")  # Check columns
     #print("aggregate_data Before conversion, index type:", type(agg_df.index))
 
     # Assuming that the epoch time might be in milliseconds, we check the magnitude
@@ -33,15 +33,15 @@ def aggregate_data(agg_df, time_unit):
     # Set 'datetime_timestamp' as the DataFrame index if it's not already
     if not isinstance(agg_df.index, pandas.DatetimeIndex):
         agg_df.set_index('datetime_timestamp', inplace=True)
-    print("aggregate_data After setting 'datetime_timestamp' as agg_df index, index type:", type(agg_df.index))
-    print(f"aggregate_data After setting 'datetime_timestamp' as agg_df index agg_df:\n{agg_df}") 
+    # print("aggregate_data After setting 'datetime_timestamp' as agg_df index, index type:", type(agg_df.index))
+    # print(f"aggregate_data After setting 'datetime_timestamp' as agg_df index agg_df:\n{agg_df}") 
     # Resample and aggregate
     if time_unit == 'D':
         aggregated_df = agg_df.resample('D').mean()  # Example aggregation by mean
     elif time_unit == 'W':
         aggregated_df = agg_df.resample('W').mean()
-    elif time_unit == 'ME':
-        aggregated_df = agg_df.resample('ME').mean()
+    elif time_unit == 'MS':
+        aggregated_df = agg_df.resample('MS').mean()
 
     # Reset index so 'datetime_timestamp' becomes a column again
     # aggregated_df = aggregated_df.reset_index()

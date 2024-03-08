@@ -5,6 +5,7 @@ beautifulsoup4==4.12.3
 ccxt==4.2.56
 databases[aiosqlite]==0.8.0
 ipykernel==6.29.3
+kaleido==0.2.1
 nbformat==5.9.2
 nest-asyncio==1.6.0
 nltk==3.8.1

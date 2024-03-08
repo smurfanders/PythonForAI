@@ -49,6 +49,7 @@ async def plot_crypto_candlestick(symbol_name: str, exchange_name: str):
                         xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # This line may help improve date label formatting
         # Display the figure.
         fig.show()
+        fig.write_image("notebooks/images/plot_crypto_candlestick.png", engine="kaleido")
     except Exception as e:
         logger.error(f"Failed to plot_crypto_candlestick chart for {exchange_name}:{symbol_name}: {e}", exc_info=True)
         # Optionally, raise the exception to signal failure to callers.
@@ -85,6 +86,7 @@ async def plot_crypto_time_series(symbol_name: str, exchange_name: str):
 
     # Show the figure.
     fig.show()
+    fig.write_image("notebooks/images/plot_crypto_time_series.png", engine="kaleido")
 
 async def plot_fear_greed_index(greed_sources, start_date, end_date):
     """
@@ -129,31 +131,44 @@ async def plot_fear_greed_index(greed_sources, start_date, end_date):
                       xaxis_title='Time',
                       yaxis_title='Greed Value',
                       xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date for better readability
-
     # Show the figure.
     fig.show()
+    fig.write_image("notebooks/images/plot_fear_greed_index.png", engine="kaleido")
 
-async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name, greed_sources, start_date, end_date, time_units=['D', 'W', 'ME']):
+async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name, greed_sources, start_date, end_date, time_units=['D', 'W', 'MS']):
     # Fetch and prepare the cryptocurrency market data
     market_data = await fetch_db_historical_data_ordered(crypto_symbol_name, crypto_exchange_name)
     market_df = await db_data_to_dataframe(market_data)
     if 'timestamp' not in market_df.columns:
         raise ValueError("analyze_plot_fgi_market_data timestamp column missing from DataFrame")
+    # Define a color palette
+    graph_colors = ['red', 'green', 'blue', 'orange', 'purple', 'cyan']  # Extend this list based on the number of time units
+    # Initialize the figure
+    fig_market = pl_go.Figure()
     # Loop through each time unit for market data analysis
-    for time_unit in time_units:
+    for time_unit in enumerate(time_units):
         period = 365 if time_unit == 'D' else 52 if time_unit == 'W' else 12
-        print(f"analyze_plot_fgi_market_data market_df.columns:\n{market_df.columns}")  # Check columns right before aggregate_data call
+        # print(f"analyze_plot_fgi_market_data market_df.columns:\n{market_df.columns}")  # Check columns right before aggregate_data call
         aggregated_market_df = aggregate_data(market_df, time_unit)
-        #print(type(aggregated_market_df.index))
-        print(aggregated_market_df.columns)
-        print(f"analyze_plot_fgi_market_data aggregated_market_df:\n{aggregated_market_df}")  # Check columns right before aggregate_data call
-        fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
+        # print(type(aggregated_market_df.index))
+        # print(aggregated_market_df.columns)
+        # print(f"analyze_plot_fgi_market_data aggregated_market_df:\n{aggregated_market_df}")  # Check columns right before aggregate_data call
+        fig_market.add_trace(pl_go.Scatter(
+            x=aggregated_market_df['datetime_timestamp'],
+            y=aggregated_market_df['close'],
+            mode='lines',
+            name=f'{time_unit}',
+            line=dict(color=graph_colors[time_unit % len(graph_colors)])  # Cycle through colors
+        ))
+        # fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
         fig_market.update_layout(
             title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
             xaxis_title='Time',
             yaxis_title='Closing Price',
-            xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))
+            xaxis=dict(type='date', tickformat='%y%m%d %H:%M')
+        )
         fig_market.show()
+        fig_market.write_image("notebooks/images/analyze_plot_fgi_market_data.png", engine="kaleido")
 
     # Loop through each FGI source and time unit for FGI data analysis
     for greed_source_name in greed_sources:
@@ -167,7 +182,7 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
                 print(f"Not enough data for {time_unit} aggregation for source {greed_source_name}.")
                 continue
             
-            period = {'D': 365, 'W': 52, 'M': 12}.get(time_unit, 365)
+            period = {'D': 365, 'W': 52, 'MS': 12}.get(time_unit, 365)
             decomposition_result = seasonal_decompose(aggregated_fgi_df['greed_value'], model='additive', extrapolate_trend='freq', period=period)
             await plot_decomposition(decomposition_result, f'FGI Decomposition ({time_unit}) for {greed_source_name}')
 
