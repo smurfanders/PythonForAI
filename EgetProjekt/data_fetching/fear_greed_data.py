@@ -64,7 +64,7 @@ async def db_data_to_dataframe(exchange_symbol_data):
         } for data_records in exchange_symbol_data]
         exchange_df = pandas.DataFrame(exchange_data)
         #exchange_df['timestamp'] = pandas.to_datetime(exchange_df['timestamp'], unit='s')  # Adjust based on actual timestamp unit if different
-        print(f"exchange_df:{exchange_df}")
+        print(f"exchange_df:\n{exchange_df}")
         return exchange_df
     except Exception as e:
         logger.error(f"Failed to convert db_data_to_dataframe: {e}", exc_info=True)
@@ -88,13 +88,13 @@ async def greed_db_data_to_dataframe(greed_records_data):
     try:
         greed_data = [{
             #"timestamp": datetime.datetime.fromtimestamp(greed_record.timestamp).strftime('%Y-%m-%d %H:%M'),
-            "timestamp": greed_record.timestamp, # Do not convert to string here if epoch time is needed for aggregation
-            "greed_value": greed_record.greed_value,
-            "greed_rating": greed_record.greed_rating,
-        } for greed_record in greed_records_data]
+            "timestamp": greed_records.timestamp, # Do not convert to string here if epoch time is needed for aggregation
+            "greed_value": greed_records.greed_value,
+            "greed_rating": greed_records.greed_rating,
+        } for greed_records in greed_records_data]
         greed_df = pandas.DataFrame(greed_data)
         #greed_df['timestamp'] = pandas.to_datetime(greed_df['timestamp'], unit='s')  # Adjust based on actual timestamp unit if different
-        print(f"greed_df:{greed_df}")
+        print(f"greed_db_data_to_dataframe greed_df:\n{greed_df}")
         return greed_df
     except Exception as e:
         logger.error(f"Failed to convert greed_db_data_to_dataframe: {e}", exc_info=True)

@@ -133,18 +133,28 @@ async def plot_fear_greed_index(greed_sources, start_date, end_date):
     # Show the figure.
     fig.show()
 
-async def analyze_plot_fgi_market_data(crypto_exchange_name, crypto_symbol_name, greed_sources, start_date, end_date, time_units=['D', 'W', 'M']):
+async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name, greed_sources, start_date, end_date, time_units=['D', 'W', 'M']):
     # Fetch and prepare the cryptocurrency market data
-    market_data = await fetch_db_historical_data_ordered(crypto_exchange_name, crypto_symbol_name)
+    market_data = await fetch_db_historical_data_ordered(crypto_symbol_name, crypto_exchange_name)
     market_df = await db_data_to_dataframe(market_data)
     if 'timestamp' not in market_df.columns:
         raise ValueError("analyze_plot_fgi_market_data timestamp column missing from DataFrame")
     # Loop through each time unit for market data analysis
-    for unit in time_units:
-        period = 365 if unit == 'D' else 52 if unit == 'W' else 12
-        aggregated_market_df = aggregate_data(market_df, unit)
+    for time_unit in time_units:
+        period = 365 if time_unit == 'D' else 52 if time_unit == 'W' else 12
+        print(f"analyze_plot_fgi_market_data market_df.columns:\n{market_df.columns}")  # Check columns right before aggregate_data call
+        aggregated_market_df = aggregate_data(market_df, time_unit)
+        print(f"analyze_plot_fgi_market_data aggregated_market_df:\n{aggregated_market_df}")  # Check columns right before aggregate_data call
         fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df.index, y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
-        fig_market.update_layout(title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({unit})', xaxis_title='Time', yaxis_title='Closing Price', xaxis=dict(type='date'))
+        fig_market.update_layout(
+            title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
+            xaxis_title='Time',
+            yaxis_title='Closing Price',
+            xaxis=dict(
+                type='date',  # This tells Plotly that the x-axis data should be treated as dates
+                tickformat='%Y-%m-%d'  # Optional: This specifies the format in which the dates should be displayed
+            )
+        )
         fig_market.show()
 
     # Loop through each FGI source and time unit for FGI data analysis
@@ -152,15 +162,16 @@ async def analyze_plot_fgi_market_data(crypto_exchange_name, crypto_symbol_name,
         fgi_data = await fetch_greed_db_historical_data_ordered(fgi_source, start_date, end_date)
         fgi_df = await greed_db_data_to_dataframe(fgi_data)
         
-        for unit in time_units:
-            aggregated_fgi_df = aggregate_data(fgi_df, unit)
+        for time_unit in time_units:
+            print(f"analyze_plot_fgi_market_data fgi_df.columns:\n{fgi_df.columns}")  # Check columns right before aggregate_data call
+            aggregated_fgi_df = aggregate_data(fgi_df, time_unit)
             if len(aggregated_fgi_df) < 2:
-                print(f"Not enough data for {unit} aggregation for source {fgi_source}.")
+                print(f"Not enough data for {time_unit} aggregation for source {fgi_source}.")
                 continue
             
-            period = {'D': 365, 'W': 52, 'M': 12}.get(unit, 365)
+            period = {'D': 365, 'W': 52, 'M': 12}.get(time_unit, 365)
             decomposition_result = seasonal_decompose(aggregated_fgi_df['greed_value'], model='additive', extrapolate_trend='freq', period=period)
-            await plot_decomposition(decomposition_result, f'FGI Decomposition ({unit}) for {fgi_source}')
+            await plot_decomposition(decomposition_result, f'FGI Decomposition ({time_unit}) for {fgi_source}')
 
 async def plot_decomposition(decomposition, title='Time Series Decomposition'):
     """
