@@ -42,7 +42,7 @@ def aggregate_data(agg_df, time_unit):
         aggregated_df = agg_df.resample('W').mean()
     elif time_unit == 'MS':
         aggregated_df = agg_df.resample('MS').mean()
-
+    
     # Reset index so 'datetime_timestamp' becomes a column again
     # aggregated_df = aggregated_df.reset_index()
     aggregated_df.reset_index(inplace=True)

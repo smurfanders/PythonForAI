@@ -7,6 +7,7 @@ from machine_learning.ml_functions import aggregate_data, decompose_time_series
 import plotly.graph_objects as pl_go
 from plotly.subplots import make_subplots
 from statsmodels.tsa.seasonal import seasonal_decompose
+import pandas
 import logging  # Provides a flexible framework for logging in Python applications.
 
 setup_logging() 
@@ -142,11 +143,11 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
     if 'timestamp' not in market_df.columns:
         raise ValueError("analyze_plot_fgi_market_data timestamp column missing from DataFrame")
     # Define a color palette
-    graph_colors = ['red', 'green', 'blue', 'orange', 'purple', 'cyan']  # Extend this list based on the number of time units
+    graph_colors = ['orange', 'purple', 'cyan', 'blue', 'red', 'green']  # Extend this list based on the number of time units
     # Initialize the figure
     fig_market = pl_go.Figure()
     # Loop through each time unit for market data analysis
-    for time_unit in enumerate(time_units):
+    for index, time_unit in enumerate(time_units):
         period = 365 if time_unit == 'D' else 52 if time_unit == 'W' else 12
         # print(f"analyze_plot_fgi_market_data market_df.columns:\n{market_df.columns}")  # Check columns right before aggregate_data call
         aggregated_market_df = aggregate_data(market_df, time_unit)
@@ -158,30 +159,37 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
             y=aggregated_market_df['close'],
             mode='lines',
             name=f'{time_unit}',
-            line=dict(color=graph_colors[time_unit % len(graph_colors)])  # Cycle through colors
+            line=dict(color=graph_colors[index % len(graph_colors)])  # Cycle through colors
         ))
-        # fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
-        fig_market.update_layout(
-            title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
-            xaxis_title='Time',
-            yaxis_title='Closing Price',
-            xaxis=dict(type='date', tickformat='%y%m%d %H:%M')
-        )
-        fig_market.show()
-        fig_market.write_image("notebooks/images/analyze_plot_fgi_market_data.png", engine="kaleido")
+    # fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
+    fig_market.update_layout(
+        title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
+        xaxis_title='Time',
+        yaxis_title='Closing Price',
+        xaxis=dict(type='date', tickformat='%y%m%d %H:%M')
+    )
+    fig_market.show()
+    #fig_market.write_image("notebooks/images/analyze_plot_fgi_market_data.png", engine="kaleido")
 
     # Loop through each FGI source and time unit for FGI data analysis
     for greed_source_name in greed_sources:
         greed_data = await fetch_greed_db_historical_data_ordered(greed_source_name, start_date, end_date)
         greed_fgi_df = await greed_db_data_to_dataframe(greed_data)
-        
+        # Select only the columns you need ('datetime_timestamp' and 'greed_value' in this case)
+        greed_fgi_df = greed_fgi_df[['datetime_timestamp', 'greed_value']]
+        # Convert 'datetime_timestamp' to datetime if it's not already
         for time_unit in time_units:
-            print(f"analyze_plot_fgi_market_data fgi_df.columns:\n{greed_fgi_df.columns}")  # Check columns right before aggregate_data call
+            print(f"analyze_plot_fgi_market_data before aggregate greed fgi_df:\n{greed_fgi_df}")
             aggregated_fgi_df = aggregate_data(greed_fgi_df, time_unit)
-            if len(aggregated_fgi_df) < 2:
-                print(f"Not enough data for {time_unit} aggregation for source {greed_source_name}.")
-                continue
-            
+            # if len(aggregated_fgi_df) < 2:
+            #     print(f"Not enough data for {time_unit} aggregation for source {greed_source_name}.")
+            #     continue
+            # Interpolate missing 'greed_value'
+            aggregated_fgi_df['datetime_timestamp'] = pandas.to_datetime(aggregated_fgi_df['datetime_timestamp'])
+            # Set 'datetime_timestamp' as the index of the DataFrame
+            aggregated_fgi_df.set_index('datetime_timestamp', inplace=True)
+            print(f"analyze_plot_fgi_market_data greed aggregated_fgi_df.columns:\n{aggregated_fgi_df.columns}")  # Check columns right before aggregate_data call
+            aggregated_fgi_df['greed_value'].interpolate(method='time', inplace=True)
             period = {'D': 365, 'W': 52, 'MS': 12}.get(time_unit, 365)
             decomposition_result = seasonal_decompose(aggregated_fgi_df['greed_value'], model='additive', extrapolate_trend='freq', period=period)
             await plot_decomposition(decomposition_result, f'FGI Decomposition ({time_unit}) for {greed_source_name}')
