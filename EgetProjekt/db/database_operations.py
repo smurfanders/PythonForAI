@@ -273,30 +273,30 @@ async def get_or_create_greed_record_async(greedsession: AsyncSession, greed_sou
         logger.error(f"Unexpected error in get_or_create_greed_record_async: {e}")
         raise
 
-async def fetch_db_historical_data_ordered(exchange_name: str, symbol_name: str, existing_session=None):
-    """
-    Fetch historical data for a given cryptocurrency symbol, optionally filtering by exchange.
-    """
-    db_fetch_session = existing_session
-    #close_session = False
-    # Initialize the database session asynchronously
-    if not existing_session:
-        logger.info(f"fetch_db_historical_data_ordered Starting new session: {exchange_name}")
-        AsyncSessionFactory, _ = await initialize_intermediary_database_async()
-        #db_session = session_factory()
-        #close_session = True
-    if not isinstance(exchange_name, str):
-        logger.error(f"Invalid fetch_db_historical_data_ordered type: {type(exchange_name)}. Expected string.")
-        return None
-    async with AsyncSessionFactory() as db_fetch_session:
-        db_query = select(DataRecord)\
-                            .join(Symbol, Symbol.id == DataRecord.symbol_id) \
-                            .join(Exchange, Exchange.id == Symbol.exchange_id) \
-                            .filter(Exchange.name == exchange_name, Symbol.name == symbol_name) \
-                            .order_by(DataRecord.timestamp)
-        db_result = await db_fetch_session.execute(db_query)
-        db_data_ordered = db_result.scalars().all()
-        return db_data_ordered
+# async def fetch_db_historical_data_ordered(exchange_name: str, symbol_name: str, existing_session=None):
+#     """
+#     Fetch historical data for a given cryptocurrency symbol, optionally filtering by exchange.
+#     """
+#     db_fetch_session = existing_session
+#     #close_session = False
+#     # Initialize the database session asynchronously
+#     if not existing_session:
+#         logger.info(f"fetch_db_historical_data_ordered Starting new session: {exchange_name}")
+#         AsyncSessionFactory, _ = await initialize_intermediary_database_async()
+#         #db_session = session_factory()
+#         #close_session = True
+#     if not isinstance(exchange_name, str):
+#         logger.error(f"Invalid fetch_db_historical_data_ordered type: {type(exchange_name)}. Expected string.")
+#         return None
+#     async with AsyncSessionFactory() as db_fetch_session:
+#         db_query = select(DataRecord)\
+#                             .join(Symbol, Symbol.id == DataRecord.symbol_id) \
+#                             .join(Exchange, Exchange.id == Symbol.exchange_id) \
+#                             .filter(Exchange.name == exchange_name, Symbol.name == symbol_name) \
+#                             .order_by(DataRecord.timestamp)
+#         db_result = await db_fetch_session.execute(db_query)
+#         db_data_ordered = db_result.scalars().all()
+#         return db_data_ordered
     
 async def fetch_db_historical_data_ordered(symbol_name: str, exchange_name: str = None, existing_session=None):
     """
@@ -310,33 +310,27 @@ async def fetch_db_historical_data_ordered(symbol_name: str, exchange_name: str 
     Returns:
         List[DataRecord]: A list of DataRecord instances, ordered by timestamp.
     """
-    db_fetch_session = existing_session
     # Initialize the database session asynchronously if not provided
     if not existing_session:
         logger.info(f"fetch_db_historical_data_ordered Starting new session for symbol: {symbol_name}")
         AsyncSessionFactory, _ = await initialize_intermediary_database_async()
         db_fetch_session = AsyncSessionFactory()
+    else:
+        db_fetch_session = existing_session
 
     async with db_fetch_session:
         # Construct the base query
-        db_query = select(DataRecord)\
-                            .join(Symbol, Symbol.id == DataRecord.symbol_id)
-
+        db_query = select(DataRecord).join(Symbol, Symbol.id == DataRecord.symbol_id)
         # Filter by exchange name if provided
         if exchange_name:
-            if not isinstance(exchange_name, str):
-                logger.error(f"Invalid fetch_db_historical_data_ordered type for exchange_name: {type(exchange_name)}. Expected string or None.")
-                return None
-            
             db_query = db_query.join(Exchange, Exchange.id == Symbol.exchange_id)\
-                               .filter(Exchange.name == exchange_name)
-
-        # Filter by symbol name
+                            .filter(Exchange.name == exchange_name)
+                            
         db_query = db_query.filter(Symbol.name == symbol_name).order_by(DataRecord.timestamp)
-
-        # Execute the query and return the ordered data
+        
         db_result = await db_fetch_session.execute(db_query)
         db_data_ordered = db_result.scalars().all()
+        
         return db_data_ordered
 
 async def fetch_greed_db_historical_data_ordered(greed_source_name, start_date, end_date, existing_greed_session=None):

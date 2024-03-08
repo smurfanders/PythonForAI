@@ -4,7 +4,6 @@ from utils.setup_project import setup_logging  # Configures logging via YAML for
 from db.database_operations import initialize_intermediary_greedbase_async, get_or_create_greed_source_async, get_or_create_greed_record_async
 from utils.config_loader import load_config_async
 from sqlalchemy.exc import SQLAlchemyError
-from statsmodels.tsa.seasonal import seasonal_decompose
 from datetime import datetime
 import aiohttp
 import aiofiles
@@ -39,53 +38,6 @@ def convert_greed_value_to_rating(greed_value: int):
     else:
         return 'unknown'
 
-def aggregate_data(df, time_unit):
-    """
-    Aggregates data over the specified time unit.
-    
-    Args:
-        df (pd.DataFrame): Dataframe with an 'timestamp' column in epoch time.
-        time_unit (str): The time unit for aggregation. Default is 'D' for daily.
-                         Other options include 'W' for weekly, 'M' for monthly.
-    
-    Returns:
-        pd.DataFrame: Aggregated DataFrame.
-    """
-    # Convert 'timestamp' from epoch to datetime
-    df['timestamp'] = pandas.to_datetime(df['timestamp'], unit='s')
-    df.set_index('timestamp', inplace=True)
-    
-    # Resample and aggregate
-    if time_unit == 'D':
-        aggregated_df = df.resample('D').mean()  # Example aggregation by mean
-    elif time_unit == 'W':
-        aggregated_df = df.resample('W').mean()
-    elif time_unit == 'M':
-        aggregated_df = df.resample('M').mean()
-    
-    return aggregated_df
-
-def decompose_time_series(df, column_name, model='additive', period=365):
-    """
-    Decomposes a time series into its trend, seasonal, and residual components.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing the time series data.
-        column_name (str): Name of the column to decompose.
-        model (str): Type of decomposition model ('additive' or 'multiplicative').
-        period (int): The cycle length in the time series data.
-
-    Returns:
-        DecomposeResult: Object with the decomposition components.
-    """
-    # Ensure the DataFrame's index is in datetime format for decomposition
-    df.index = pandas.to_datetime(df.index, unit='s')
-
-    # Perform the decomposition
-    decomposition_result = seasonal_decompose(df[column_name], model=model, period=period, extrapolate_trend='freq')
-
-    return decomposition_result
-
 async def db_data_to_dataframe(exchange_symbol_data):
     """
     Converts cryptocurrency data into a pandas DataFrame.
@@ -101,15 +53,19 @@ async def db_data_to_dataframe(exchange_symbol_data):
     """
     # Attempt to transform the data into a DataFrame.
     try:
-        data = [{
-            "timestamp": datetime.datetime.fromtimestamp(record.timestamp).strftime('%Y-%m-%d %H:%M'),
-            "open": record.open,
-            "high": record.high,
-            "low": record.low,
-            "close": record.close,
-            "volume": record.volume
-        } for record in exchange_symbol_data]
-        return pandas.DataFrame(data)
+        exchange_data = [{
+            #"timestamp": datetime.datetime.fromtimestamp(data_records.timestamp).strftime('%Y-%m-%d %H:%M'),
+            "timestamp": data_records.timestamp,  # Do not convert to string here if epoch time is needed for aggregation
+            "open": data_records.open,
+            "high": data_records.high,
+            "low": data_records.low,
+            "close": data_records.close,
+            "volume": data_records.volume
+        } for data_records in exchange_symbol_data]
+        exchange_df = pandas.DataFrame(exchange_data)
+        #exchange_df['timestamp'] = pandas.to_datetime(exchange_df['timestamp'], unit='s')  # Adjust based on actual timestamp unit if different
+        print(f"exchange_df:{exchange_df}")
+        return exchange_df
     except Exception as e:
         logger.error(f"Failed to convert db_data_to_dataframe: {e}", exc_info=True)
         # Optionally raise the exception to halt the execution or handle it accordingly.
@@ -131,12 +87,15 @@ async def greed_db_data_to_dataframe(greed_records_data):
     # Attempt to transform the data into a DataFrame.
     try:
         greed_data = [{
-            "timestamp": datetime.datetime.fromtimestamp(record.timestamp).strftime('%Y-%m-%d %H:%M'),
-            #"timestamp": record.timestamp,
-            "greed_value": record.greed_value,
-            "greed_rating": record.greed_rating,
-        } for record in greed_records_data]
-        return pandas.DataFrame(greed_data)
+            #"timestamp": datetime.datetime.fromtimestamp(greed_record.timestamp).strftime('%Y-%m-%d %H:%M'),
+            "timestamp": greed_record.timestamp, # Do not convert to string here if epoch time is needed for aggregation
+            "greed_value": greed_record.greed_value,
+            "greed_rating": greed_record.greed_rating,
+        } for greed_record in greed_records_data]
+        greed_df = pandas.DataFrame(greed_data)
+        #greed_df['timestamp'] = pandas.to_datetime(greed_df['timestamp'], unit='s')  # Adjust based on actual timestamp unit if different
+        print(f"greed_df:{greed_df}")
+        return greed_df
     except Exception as e:
         logger.error(f"Failed to convert greed_db_data_to_dataframe: {e}", exc_info=True)
         # Optionally raise the exception to halt the execution or handle it accordingly.

@@ -1,13 +1,12 @@
 # ml/plotly_functions.py
 
-from data_fetching import exchange_data
 from utils.setup_project import setup_logging  # Configures logging via YAML for standardized settings across the application.
 from db.database_operations import fetch_db_historical_data_ordered, fetch_greed_db_historical_data_ordered
-from data_fetching.fear_greed_data import db_data_to_dataframe, greed_db_data_to_dataframe, aggregate_data, decompose_time_series
+from data_fetching.fear_greed_data import db_data_to_dataframe, greed_db_data_to_dataframe
+from machine_learning.ml_functions import aggregate_data, decompose_time_series
 import plotly.graph_objects as pl_go
 from plotly.subplots import make_subplots
 from statsmodels.tsa.seasonal import seasonal_decompose
-import pandas
 import logging  # Provides a flexible framework for logging in Python applications.
 
 setup_logging() 
@@ -138,7 +137,8 @@ async def analyze_plot_fgi_market_data(crypto_exchange_name, crypto_symbol_name,
     # Fetch and prepare the cryptocurrency market data
     market_data = await fetch_db_historical_data_ordered(crypto_exchange_name, crypto_symbol_name)
     market_df = await db_data_to_dataframe(market_data)
-
+    if 'timestamp' not in market_df.columns:
+        raise ValueError("analyze_plot_fgi_market_data timestamp column missing from DataFrame")
     # Loop through each time unit for market data analysis
     for unit in time_units:
         period = 365 if unit == 'D' else 52 if unit == 'W' else 12
