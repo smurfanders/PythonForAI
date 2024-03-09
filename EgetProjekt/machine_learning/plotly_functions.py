@@ -47,7 +47,8 @@ async def plot_crypto_candlestick(symbol_name: str, exchange_name: str):
                         xaxis_title='Time', yaxis_title='Price')
         fig.update_layout(title=f'{exchange_name}:{symbol_name} Price Movements',
                         xaxis_title='Time', yaxis_title='Price',
-                        xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # This line may help improve date label formatting
+                        xaxis=dict(type='date', dtick="M1", tickformat='%y%m%d %H:%M'))  # This line may help improve date label formatting
+        fig.update_layout(autosize=False, width=1200, height=500)
         # Display the figure.
         fig.show()
         fig.write_image("notebooks/images/plot_crypto_candlestick.png", engine="kaleido")
@@ -83,8 +84,8 @@ async def plot_crypto_time_series(symbol_name: str, exchange_name: str):
     fig.update_layout(title=f'Time Series of Closing Prices for {exchange_name}:{symbol_name}',
                       xaxis_title='Time',
                       yaxis_title='Closing Price',
-                      xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date
-
+                      xaxis=dict(type='date', dtick="M1", tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date
+    fig.update_layout(autosize=False, width=1200, height=500)
     # Show the figure.
     fig.show()
     fig.write_image("notebooks/images/plot_crypto_time_series.png", engine="kaleido")
@@ -131,7 +132,8 @@ async def plot_fear_greed_index(greed_sources, start_date, end_date):
     fig.update_layout(title='Fear and Greed Index Over Time',
                       xaxis_title='Time',
                       yaxis_title='Greed Value',
-                      xaxis=dict(type='date', tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date for better readability
+                      xaxis=dict(type='date', dtick="M1", tickformat='%y%m%d %H:%M'))  # Ensure x-axis is treated as date for better readability
+    fig.update_layout(autosize=False, width=1200, height=500)
     # Show the figure.
     fig.show()
     fig.write_image("notebooks/images/plot_fear_greed_index.png", engine="kaleido")
