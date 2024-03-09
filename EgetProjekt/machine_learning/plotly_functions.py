@@ -3,7 +3,7 @@
 from utils.setup_project import setup_logging  # Configures logging via YAML for standardized settings across the application.
 from db.database_operations import fetch_db_historical_data_ordered, fetch_greed_db_historical_data_ordered
 from data_fetching.fear_greed_data import db_data_to_dataframe, greed_db_data_to_dataframe
-from machine_learning.ml_functions import aggregate_data, decompose_time_series
+from machine_learning.ml_functions import aggregate_data, normalize_dataframe_column_torch
 import plotly.graph_objects as pl_go
 from plotly.subplots import make_subplots
 from statsmodels.tsa.seasonal import seasonal_decompose
@@ -146,11 +146,13 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
     graph_colors = ['orange', 'purple', 'cyan', 'blue', 'red', 'green']  # Extend this list based on the number of time units
     # Initialize the figure
     fig_market = pl_go.Figure()
+    # Normalize market data
+    norm_market_df = normalize_dataframe_column_torch(market_df, 'close', 'min-max', return_tensor=False)
     # Loop through each time unit for market data analysis
     for index, time_unit in enumerate(time_units):
         period = 365 if time_unit == 'D' else 52 if time_unit == 'W' else 12
         # print(f"analyze_plot_fgi_market_data market_df.columns:\n{market_df.columns}")  # Check columns right before aggregate_data call
-        aggregated_market_df = aggregate_data(market_df, time_unit)
+        aggregated_market_df = aggregate_data(norm_market_df, time_unit)
         # print(type(aggregated_market_df.index))
         # print(aggregated_market_df.columns)
         # print(f"analyze_plot_fgi_market_data aggregated_market_df:\n{aggregated_market_df}")  # Check columns right before aggregate_data call
@@ -158,19 +160,10 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
             x=aggregated_market_df['datetime_timestamp'],
             y=aggregated_market_df['close'],
             mode='lines',
-            name=f'{time_unit}',
+            name=f'{time_unit} Market',
             line=dict(color=graph_colors[index % len(graph_colors)])  # Cycle through colors
         ))
-    # fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
-    fig_market.update_layout(
-        title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
-        xaxis_title='Time',
-        yaxis_title='Closing Price',
-        xaxis=dict(type='date', tickformat='%y%m%d %H:%M')
-    )
-    fig_market.show()
-    #fig_market.write_image("notebooks/images/analyze_plot_fgi_market_data.png", engine="kaleido")
-
+    
     # Loop through each FGI source and time unit for FGI data analysis
     for greed_source_name in greed_sources:
         greed_data = await fetch_greed_db_historical_data_ordered(greed_source_name, start_date, end_date)
@@ -178,12 +171,22 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
         # Select only the columns you need ('datetime_timestamp' and 'greed_value' in this case)
         greed_fgi_df = greed_fgi_df[['datetime_timestamp', 'greed_value']]
         # Convert 'datetime_timestamp' to datetime if it's not already
+        # Normalize FGI data
+        norm_greed_fgi_df = normalize_dataframe_column_torch(greed_fgi_df, 'greed_value', 'min-max', return_tensor=False)
         for time_unit in time_units:
             print(f"analyze_plot_fgi_market_data before aggregate greed fgi_df:\n{greed_fgi_df}")
-            aggregated_fgi_df = aggregate_data(greed_fgi_df, time_unit)
+            aggregated_fgi_df = aggregate_data(norm_greed_fgi_df, time_unit)
             # if len(aggregated_fgi_df) < 2:
             #     print(f"Not enough data for {time_unit} aggregation for source {greed_source_name}.")
             #     continue
+            # Plotting the FGI data
+            fig_market.add_trace(go.Scatter(
+                x=aggregated_fgi_df['datetime_timestamp'],
+                y=aggregated_fgi_df['greed_value'],
+                mode='lines',
+                name=f'{time_unit} FGI - {greed_source_name}',
+                line=dict(color=graph_colors[(index + 1) % len(graph_colors)])
+            ))
             # Interpolate missing 'greed_value'
             aggregated_fgi_df['datetime_timestamp'] = pandas.to_datetime(aggregated_fgi_df['datetime_timestamp'])
             # Set 'datetime_timestamp' as the index of the DataFrame
@@ -193,6 +196,23 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
             period = {'D': 365, 'W': 52, 'MS': 12}.get(time_unit, 365)
             decomposition_result = seasonal_decompose(aggregated_fgi_df['greed_value'], model='additive', extrapolate_trend='freq', period=period)
             await plot_decomposition(decomposition_result, f'FGI Decomposition ({time_unit}) for {greed_source_name}')
+
+    # fig_market = pl_go.Figure(data=[pl_go.Scatter(x=aggregated_market_df['datetime_timestamp'], y=aggregated_market_df['close'], mode='lines', name=crypto_symbol_name)])
+    # fig_market.update_layout(
+    #     title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices ({time_unit})',
+    #     xaxis_title='Time',
+    #     yaxis_title='Closing Price',
+    #     xaxis=dict(type='date', tickformat='%y%m%d %H:%M')
+    # )
+    # Update layout
+    fig_market.update_layout(
+        title=f'{crypto_exchange_name}:{crypto_symbol_name} Closing Prices and FGI',
+        xaxis_title='Time',
+        yaxis_title='Normalized Value',
+        legend_title='Data Source'
+    )
+    fig_market.show()
+    #fig_market.write_image("notebooks/images/analyze_plot_fgi_market_data.png", engine="kaleido")
 
 async def plot_decomposition(decomposition, title='Time Series Decomposition'):
     """

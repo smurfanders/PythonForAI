@@ -3,6 +3,7 @@
 from utils.setup_project import setup_logging  # Configures logging via YAML for standardized settings across the application.
 from statsmodels.tsa.seasonal import seasonal_decompose
 import pandas
+import torch
 import logging  # Provides a flexible framework for logging in Python applications.
 
 setup_logging() 
@@ -78,3 +79,57 @@ def decompose_time_series(dec_df, column_name, model='additive', period=365):
     decomposition_result = seasonal_decompose(dec_df[column_name], model=model, period=period, extrapolate_trend='freq')
     print(f"decompose_time_series decomposition_result:\n{decomposition_result}")  # Check columns
     return decomposition_result
+
+def normalize_dataframe_column_torch(incoming_df, column_name, norm_method, return_tensor=False):
+    """
+    Normalizes the specified column in the DataFrame using PyTorch according to the selected normalization method.
+
+    Parameters:
+    - incoming_df (pandas.DataFrame): The DataFrame containing the column to be normalized.
+    - column_name (str): The name of the column to normalize.
+    - norm_method (str): The normalization method to apply. Supported methods are:
+        'min-max' - Rescales data to the [0, 1] range.
+        'standard' - Standardizes data to have a mean of 0 and a standard deviation of 1.
+        'robust' - Uses the interquartile range, making it robust to outliers.
+        'l1' - Normalizes data using the L1 norm, making the sum of absolute values 1 in each column.
+        'l2' - Normalizes data using the L2 norm, making the sum of squares 1 in each column.
+    - return_tensor (bool, optional): If True, returns a PyTorch tensor instead of a DataFrame. Default is False.
+
+    Returns:
+    - pandas.DataFrame or torch.Tensor: The DataFrame with the normalized column if return_tensor is False, or the normalization tensor if return_tensor is True.
+
+    Raises:
+    - ValueError: If an unknown normalization method is specified.
+    """
+    try:
+        # Copy the input DataFrame to avoid modifying the original data
+        working_df = incoming_df.copy()
+        # Convert the column data to a PyTorch tensor
+        tensor_data = torch.tensor(working_df[column_name].values, dtype=torch.float32).view(-1, 1)
+        
+        # Apply the selected normalization method
+        if norm_method == 'min-max':
+            scaler = (tensor_data - torch.min(tensor_data)) / (torch.max(tensor_data) - torch.min(tensor_data))
+        elif norm_method == 'standard':
+            scaler = (tensor_data - torch.mean(tensor_data)) / torch.std(tensor_data)
+        elif norm_method == 'robust':
+            qHigh, qLow = torch.quantile(tensor_data, 0.75), torch.quantile(tensor_data, 0.25)
+            scaler = (tensor_data - qLow) / (qHigh - qLow)
+        elif norm_method == 'l1':
+            scaler = tensor_data / torch.norm(tensor_data, p=1, dim=0)
+        elif norm_method == 'l2':
+            scaler = tensor_data / torch.norm(tensor_data, p=2, dim=0)
+        else:
+            # Raise an error for an unsupported normalization method
+            raise ValueError(f"Unknown normalize_dataframe_column_torch method specified:{norm_method}")
+        # Decide whether to return a DataFrame or a PyTorch tensor
+        if return_tensor:
+            return scaler
+        else:
+            # Convert the tensor back to numpy and update the DataFrame
+            normalized_df = incoming_df.copy()
+            normalized_df[column_name] = scaler.numpy().flatten()
+            return normalized_df
+    except Exception as e:
+        logging.error(f"Error normalize_dataframe_column_torch {column_name} with method {norm_method}:{e}")
+        raise 
