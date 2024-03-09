@@ -180,7 +180,7 @@ async def analyze_plot_fgi_market_data(crypto_symbol_name, crypto_exchange_name,
             #     print(f"Not enough data for {time_unit} aggregation for source {greed_source_name}.")
             #     continue
             # Plotting the FGI data
-            fig_market.add_trace(go.Scatter(
+            fig_market.add_trace(pl_go.Scatter(
                 x=aggregated_fgi_df['datetime_timestamp'],
                 y=aggregated_fgi_df['greed_value'],
                 mode='lines',
