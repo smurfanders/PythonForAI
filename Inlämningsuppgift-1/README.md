@@ -2,6 +2,8 @@
 
 Run the game in dae-blackjack.py (everything is in the same file, will maybe be split up later depending on the size of the code).
 
+A playable demo now exists on [Google Collab](https://colab.research.google.com/drive/1rgxhE7p61UrTrUMNw2qa1Kjkodrjdopj#scrollTo=hd3LKThA-0Em)
+
 The game itself has all the instructions on what keys to press and which shoices you can make while playing.
 
 AI has been used to generate docstrings in dae-blackjack.py, then they have been edited and a lot of comments have been added.  
